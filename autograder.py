@@ -155,7 +155,7 @@ def run_tests(name, remote_index, autograder_files, version, **kwargs):
                         help='Prints autograder version and exits')
     args = parser.parse_args()
 
-    check_for_updates(remote_index, autograder_files, version)
+    # check_for_updates(remote_index, autograder_files, version)
     if args.version:
         exit(0)
     elif args.question and 0 < args.question <= len(TESTS):
