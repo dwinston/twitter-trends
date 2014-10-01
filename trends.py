@@ -6,6 +6,7 @@ from geo import us_states, geo_distance, make_position, longitude, latitude
 from maps import draw_state, draw_name, draw_dot, wait
 from string import ascii_letters
 from ucb import main, trace, interact, log_current_line
+import re
 
 
 ###################################
@@ -37,15 +38,15 @@ def make_tweet(text, time, lat, lon):
 
 def tweet_text(tweet):
     """Return a string, the words in the text of a tweet."""
-    "*** YOUR CODE HERE ***"
+    return tweet['text']
 
 def tweet_time(tweet):
     """Return the datetime representing when a tweet was posted."""
-    "*** YOUR CODE HERE ***"
+    return tweet['time']
 
 def tweet_location(tweet):
     """Return a position representing a tweet's location."""
-    "*** YOUR CODE HERE ***"
+    return make_position(tweet['latitude'], tweet['longitude'])
 
 # The tweet abstract data type, implemented as a function.
 
@@ -60,8 +61,10 @@ def make_tweet_fn(text, time, lat, lon):
     >>> latitude(tweet_location_fn(t))
     38
     """
-    "*** YOUR CODE HERE ***"
-    # Please don't call make_tweet in your solution
+    tweet =  {'text': text, 'time': time, 'lat': lat, 'lon': lon}
+    def dispatch(msg):
+        return tweet[msg]
+    return dispatch
 
 def tweet_text_fn(tweet):
     """Return a string, the words in the text of a functional tweet."""
@@ -101,8 +104,7 @@ def extract_words(text):
     >>> extract_words('@(cat$.on^#$my&@keyboard***@#*')
     ['cat', 'on', 'my', 'keyboard']
     """
-    "*** YOUR CODE HERE ***"
-    return text.split()  # Replace this line
+    return re.compile('[a-zA-Z]+').findall(text)
 
 def make_sentiment(value):
     """Return a sentiment, which represents a value that may not exist.
@@ -122,16 +124,16 @@ def make_sentiment(value):
     0
     """
     assert value is None or (value >= -1 and value <= 1), 'Illegal value'
-    "*** YOUR CODE HERE ***"
+    return {'value': value}
 
 def has_sentiment(s):
     """Return whether sentiment s has a value."""
-    "*** YOUR CODE HERE ***"
+    return ('value' in s) and (s['value'] is not None)
 
 def sentiment_value(s):
     """Return the value of a sentiment s."""
     assert has_sentiment(s), 'No sentiment value'
-    "*** YOUR CODE HERE ***"
+    return s['value']
 
 def get_word_sentiment(word):
     """Return a sentiment representing the degree of positive or negative
@@ -167,9 +169,13 @@ def analyze_tweet_sentiment(tweet):
     >>> has_sentiment(analyze_tweet_sentiment(no_sentiment))
     False
     """
-    # You may change any of the lines below.
     average = make_sentiment(None)
-    "*** YOUR CODE HERE ***"
+    sentiments_possible = map(get_word_sentiment, tweet_words(tweet))
+    sentiments_valued = list(filter(has_sentiment, sentiments_possible))
+    n = len(sentiments_valued)
+    if n > 0:
+        sentiments_sum = sum(map(sentiment_value, sentiments_valued))
+        average = make_sentiment(sentiments_sum / n)
     return average
 
 
@@ -199,7 +205,21 @@ def find_centroid(polygon):
     >>> tuple(map(float, find_centroid([p1, p2, p1])))  # A zero-area polygon
     (1.0, 2.0, 0.0)
     """
-    "*** YOUR CODE HERE ***"
+    lats, lons = list(map(latitude, polygon)), list(map(longitude, polygon))
+
+    # Gather tuples (x_{i}, x_{i+1}, y_{i}, y_{i+1})
+    term_input = list(zip(lats[:-1], lats[1:], lons[:-1], lons[1:]))
+
+    area = 0.5 * sum(xi * yip1 - xip1 * yi
+                     for xi, xip1, yi, yip1 in term_input)
+    if area == 0:
+        cx, cy = latitude(polygon[0]), longitude(polygon[0])
+    else:
+        cx = (1/(6*area)) * sum((xi + xip1) * (xi * yip1 - xip1 * yi)
+                                for xi, xip1, yi, yip1 in term_input)
+        cy = (1/(6*area)) * sum((yi + yip1) * (xi * yip1 - xip1 * yi)
+                                for xi, xip1, yi, yip1 in term_input)
+    return cx, cy, abs(area)
 
 def find_state_center(polygons):
     """Compute the geographic center of a state, averaged over its polygons.
@@ -222,7 +242,11 @@ def find_state_center(polygons):
     >>> round(longitude(hi), 5)
     -156.21763
     """
-    "*** YOUR CODE HERE ***"
+    centroids = [find_centroid(p) for p in polygons]
+    sum_areas = sum(area for _, _, area in centroids)
+    cx = sum(cx * area for cx, _, area in centroids) / sum_areas
+    cy = sum(cy * area for _, cy, area in centroids) / sum_areas
+    return make_position(cx, cy)
 
 
 ###################################
