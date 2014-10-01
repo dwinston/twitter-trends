@@ -7,6 +7,7 @@ from maps import draw_state, draw_name, draw_dot, wait
 from string import ascii_letters
 from ucb import main, trace, interact, log_current_line
 import re
+from operator import itemgetter
 
 
 ###################################
@@ -273,7 +274,23 @@ def group_tweets_by_state(tweets):
     '"welcome to san francisco" @ (38, -122)'
     """
     tweets_by_state = {}
-    "*** YOUR CODE HERE ***"
+    centers_by_state = {state: find_state_center(polygons)
+                        for state, polygons in us_states.items()}
+
+    def closest_state_center(position):
+        distances_by_state = {state: geo_distance(position, center)
+                              for state, center in centers_by_state.items()}
+        # Get the minimum of (state, distance) pairs, keyed on `distance`, and
+        # return the `state` of this pair.
+        return min(distances_by_state.items(), key=itemgetter(1))[0]
+
+    for tweet in tweets:
+        state = closest_state_center(tweet_location(tweet))
+        if state in tweets_by_state:
+            tweets_by_state[state].append(tweet)
+        else:
+            tweets_by_state[state] = [tweet]
+
     return tweets_by_state
 
 def average_sentiments(tweets_by_state):
@@ -289,7 +306,11 @@ def average_sentiments(tweets_by_state):
     tweets_by_state -- A dictionary from state names to lists of tweets
     """
     averaged_state_sentiments = {}
-    "*** YOUR CODE HERE ***"
+    for state, tweets in tweets_by_state.items():
+        sentiments = (analyze_tweet_sentiment(tweet) for tweet in tweets)
+        values = [sentiment_value(s) for s in filter(has_sentiment, sentiments)]
+        if len(values) > 0:
+            averaged_state_sentiments[state] = sum(values) / len(values)
     return averaged_state_sentiments
 
 
